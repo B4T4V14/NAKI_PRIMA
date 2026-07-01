@@ -125,7 +125,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     const defaultCenter = [-6.219589, 106.940264];
-    const map = L.map('map').setView(defaultCenter, 16);
+    const map = L.map('map', { maxZoom: 20 }).setView(defaultCenter, 18);
     const markerLayer = L.layerGroup().addTo(map);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -173,7 +173,7 @@
       });
 
       if (bounds.length > 0) {
-        map.fitBounds(bounds, { padding: [20, 20] });
+        map.fitBounds(bounds, { padding: [10, 10], maxZoom: 19 });
       }
 
       setStatus('Loaded ' + bounds.length + ' points.', false);
