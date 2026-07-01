@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAKI Monitor Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --ink: #1f2a2e;
+      --card: #fffdf8;
+      --accent: #00695c;
+      --muted: #5b676c;
+      --danger: #b23a48;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 20% 20%, #fff8ec 0%, var(--bg) 70%);
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid #e5dfd3;
+      border-radius: 12px;
+      box-shadow: 0 6px 24px rgba(20, 33, 38, 0.06);
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+    }
+
+    input, button {
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #cfd8dc;
+    }
+
+    button {
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      min-width: 120px;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    #map {
+      height: 62vh;
+      border-radius: 12px;
+      border: 1px solid #d7d2c8;
+    }
+
+    .list {
+      margin-top: 10px;
+      max-height: 180px;
+      overflow: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .item {
+      border-bottom: 1px dashed #ddd2c2;
+      padding: 6px 0;
+    }
+
+    .item:last-child {
+      border-bottom: none;
+    }
+
+    @media (max-width: 800px) {
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      #map {
+        height: 52vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h2 style="margin: 6px 0 10px;">NAKI Monitor Map (GitHub Pages)</h2>
+      <div class="controls">
+        <input id="apiBase" placeholder="API Base URL, contoh: https://api-naki.example.com">
+        <input id="apiToken" placeholder="Bearer token (optional)">
+        <button id="loadBtn">Load Points</button>
+      </div>
+      <div id="status" class="status">Set API base URL lalu klik Load Points.</div>
+      <div class="list" id="list"></div>
+    </div>
+
+    <div id="map" class="panel"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const defaultCenter = [-6.219589, 106.940264];
+    const map = L.map('map').setView(defaultCenter, 16);
+    const markerLayer = L.layerGroup().addTo(map);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const apiBaseInput = document.getElementById('apiBase');
+    const tokenInput = document.getElementById('apiToken');
+    const statusEl = document.getElementById('status');
+    const listEl = document.getElementById('list');
+
+    apiBaseInput.value = localStorage.getItem('naki_api_base') || '';
+    tokenInput.value = localStorage.getItem('naki_api_token') || '';
+
+    function setStatus(msg, isError) {
+      statusEl.textContent = msg;
+      statusEl.className = isError ? 'status error' : 'status';
+    }
+
+    function renderPoints(points) {
+      markerLayer.clearLayers();
+      listEl.innerHTML = '';
+
+      if (!points || points.length === 0) {
+        setStatus('No points returned from API.', true);
+        return;
+      }
+
+      const bounds = [];
+      points.forEach((p, idx) => {
+        if (typeof p.latitude !== 'number' || typeof p.longitude !== 'number') {
+          return;
+        }
+
+        const marker = L.marker([p.latitude, p.longitude]);
+        marker.bindPopup('<b>' + (p.ssid || 'Unknown SSID') + '</b><br>' + p.latitude + ', ' + p.longitude);
+        marker.addTo(markerLayer);
+        bounds.push([p.latitude, p.longitude]);
+
+        const row = document.createElement('div');
+        row.className = 'item';
+        row.textContent = (idx + 1) + '. ' + (p.ssid || 'Unknown SSID') + ' -> ' + p.latitude + ', ' + p.longitude;
+        listEl.appendChild(row);
+      });
+
+      if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [20, 20] });
+      }
+
+      setStatus('Loaded ' + bounds.length + ' points.', false);
+    }
+
+    async function loadPoints() {
+      const baseUrl = apiBaseInput.value.trim().replace(/\/$/, '');
+      const token = tokenInput.value.trim();
+
+      if (!baseUrl) {
+        setStatus('API base URL wajib diisi.', true);
+        return;
+      }
+
+      localStorage.setItem('naki_api_base', baseUrl);
+      localStorage.setItem('naki_api_token', token);
+
+      const url = baseUrl + '/api/v1/aoi?format=markas&limit=500';
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+      }
+
+      setStatus('Loading data from ' + url + ' ...', false);
+
+      try {
+        const response = await fetch(url, { headers });
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+
+        const payload = await response.json();
+        const points = payload && payload.data && Array.isArray(payload.data.points)
+          ? payload.data.points
+          : [];
+
+        renderPoints(points);
+      } catch (err) {
+        setStatus('Failed to load points: ' + err.message, true);
+      }
+    }
+
+    document.getElementById('loadBtn').addEventListener('click', loadPoints);
+  </script>
+</body>
+</html>
