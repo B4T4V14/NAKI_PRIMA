@@ -125,13 +125,18 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     const defaultCenter = [-6.219589, 106.940264];
-    const map = L.map('map', { maxZoom: 21 }).setView(defaultCenter, 20);
+    const map = L.map('map', { 
+      maxZoom: 21,
+      attributionControl: true
+    }).setView(defaultCenter, 20);
+    
+    L.control.attribution({ prefix: false }).addTo(map);
     const markerLayer = L.layerGroup().addTo(map);
 
     L.tileLayer('https://mt{s}.google.com/vt?lyrs=m&x={x}&y={y}&z={z}', {
       maxZoom: 21,
       subdomains: ['0', '1', '2', '3'],
-      attribution: '&copy; Google Maps'
+      attribution: '&copy; <a href="https://www.google.com/maps" target="_blank">Google Maps</a>'
     }).addTo(map);
 
     const apiBaseInput = document.getElementById('apiBase');
